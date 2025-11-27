@@ -68,6 +68,7 @@ Beam profiling software features:
 - Connect to multiple cameras on a single PC
   - If logging is enabled while multiple cameras are connected, the software will loop through the cameras with auto ROI, auto exposure and record data
   - The software will naively connect to any webcams the PC has. This can be bypassed by determining the path of the camera, assigning an identifier and only allowing beam profiling cameras to be used (see init_camera function in gui script)
-- To run:
+- To run from command line:
+  - cd (working-directory)
   - py beam_profiler_gui.py
 
