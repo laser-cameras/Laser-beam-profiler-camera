@@ -1,12 +1,18 @@
 Open-source laser beam profiling application using Python.
 
 Required packages:  
-PyQt5, numpy, matplotlib, opencv-python, cv2_enumerate_cameras
+- PyQt5
+- numpy
+- matplotlib
+- opencv-python
+- cv2_enumerate_cameras
 
 Source files:  
-beam_profiler_gui.py, camera.py, cb.png
+- beam_profiler_gui.py
+- camera.py
+- cb.png
 
-Low cost Arducam UVC USB camera Arducam 20MP AR2020 B0511C (with enclosure) $265.  
+Low cost Arducam UVC USB camera 20MP AR2020 B0511C (with enclosure) $265.  
 https://www.arducam.com/presalesarducam-20mp-ar2020-monochrome-manual-focus-usb-3-0-camera.html  
 Other cameras (UVC/web-cam type) may be used but compatibility is not guaranteed and minor modification of the code may be required.
 
