@@ -22,7 +22,7 @@ Exposure: 150 us to 640 ms
 [option 1] S-mount (M12) to C-mount adapter. Edmund Optics 63-974 $60  
 https://www.edmundoptics.com/p/male-s-to-female-c-adapter/18686/?srsltid=AfmBOoq1u2u2iRjV2_g_2uVE0Q3QIOe_mvLaDkdhgzAN5ILeAnjkB363
 
-[optiona 2] C-mount to SM1 mount adapter. Thorlabs SM1A9 $23  
+[option 2] C-mount to SM1 mount adapter. Thorlabs SM1A9 $23  
 https://www.thorlabs.com/thorproduct.cfm?partnumber=SM1A9
 
 Hardware installation instructions:
