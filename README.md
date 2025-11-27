@@ -42,8 +42,8 @@ Hardware installation instructions:
 <img width="234" height="228" alt="camera_ex" src="https://github.com/user-attachments/assets/e7fba40b-9cac-4179-9cd2-8146edfdbca0" />  
 <br>
 
-<img width="470" height="692" alt="1" src="https://github.com/user-attachments/assets/c1e49e50-3284-49c7-80cb-7dc93771e71f" />
-<img width="470" height="692" alt="2" src="https://github.com/user-attachments/assets/56e393d7-e439-4fa1-9e48-c22577e8ec55" />
+<img width="470" height="692" alt="1_1" src="https://github.com/user-attachments/assets/7ae555cf-f386-4c32-ac8d-9e73b40c56af" />
+<img width="470" height="692" alt="2" src="https://github.com/user-attachments/assets/71d6e12a-6ccb-4562-84d2-50419f3b13ed" />
 
 
 Beam profiling software features:
@@ -51,11 +51,13 @@ Beam profiling software features:
 - Beam profiling image feed (false color)
 - Manual ROI placement with centroid and radius
 - Auto ROI tracking
+- Centroid tracking
 - Centroid and beam width (d4sigma) readout
 - Power (integrated counts) readout
 - Exposure setting
 - Auto exposure
 - Saturated pixel detection
+- fps counter
 - Save instantaneous data
   - Camera image
   - Beam profile image
