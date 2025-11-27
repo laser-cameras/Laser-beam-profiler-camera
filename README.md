@@ -8,14 +8,14 @@ beam_profiler_gui.py, camera.py, cb.png
 
 Low cost Arducam UVC USB camera Arducam 20MP AR2020 B0511C (with enclosure) $265.  
 https://www.arducam.com/presalesarducam-20mp-ar2020-monochrome-manual-focus-usb-3-0-camera.html  
-Other cameras may be used but requires changing the code.
+Other cameras (UVC/web-cam type) may be used but compatibility is not guaranteed and minor modification of the code may be required.
 
 <img width="325" height="325" alt="image" src="https://github.com/user-attachments/assets/425f62e0-1d45-4896-9e50-6a6e62cd9fdf" />
 
 Sensor AR2020  
 Monochrome rolling shutter  
 Native resolution 20MP 5120 x 3840, 1.4 um pixel size  
-Application resolution (4x4 binning) 1280 x 960, 5.6 um pixel size  
+Application resolution (4x4 binning) 1280 x 960, 5.6 um pixel size, 8 bit depth  
 Sensor format: 1/8"  
 Exposure: 150 us to 640 ms  
 
@@ -33,5 +33,33 @@ Hardware installation instructions:
 5. Mount on optical system in beam path as desired
 6. Connect USB-C cable to the camera and PC
 
-<img width="234" height="228" alt="camera_ex" src="https://github.com/user-attachments/assets/e7fba40b-9cac-4179-9cd2-8146edfdbca0" />
+<img width="234" height="228" alt="camera_ex" src="https://github.com/user-attachments/assets/e7fba40b-9cac-4179-9cd2-8146edfdbca0" />  
+<br>
+
+<img width="470" height="692" alt="1" src="https://github.com/user-attachments/assets/c1e49e50-3284-49c7-80cb-7dc93771e71f" />
+<img width="470" height="692" alt="2" src="https://github.com/user-attachments/assets/56e393d7-e439-4fa1-9e48-c22577e8ec55" />
+
+
+Beam profiling software features:
+- Camera raw image feed
+- Beam profiling image feed (false color)
+- Manual ROI placement with centroid and radius
+- Auto ROI tracking
+- Centroid and beam width (d4sigma) readout
+- Power (integrated counts) readout
+- Exposure setting
+- Auto exposure
+- Saturated pixel detection
+- Save instantaneous data
+  - Camera image
+  - Beam profile image
+  - X centroid lineout plot
+  - Y centroid lineout plot
+  - Measurements csv: Camera settings, beam centroid, D4sigma, Aperture (ROI), Exposure, Max signal, Power, saturated pixels, camera identifier
+- Logging (continuous measurements data saving)
+- Connect to multiple cameras on a single PC
+  - If logging is enabled while multiple cameras are connected, the software will loop through the cameras with auto ROI, auto exposure and record data
+  - The software will naively connect to any webcams the PC has. This can be bypassed by determining the path of the camera, assigning an identifier and only allowing beam profiling cameras to be used (see init_camera function in gui script)
+- To run:
+  - py beam_profiler_gui.py
 
