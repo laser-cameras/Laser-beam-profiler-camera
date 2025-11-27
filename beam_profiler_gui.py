@@ -3,7 +3,7 @@
 #Custom laser beam image acquisition and beam profiling GUI
 #The code has been tested on Windows11
 
-#Version: v1.0
+#Version: v1.1
 #This software is made available via GNU
 
 #required imports
@@ -42,7 +42,7 @@ class Ui_MainWindow(object):
     #setup UI elements
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("Beam GUI")
-        #resize the window to fit conveniently on a Raspberry Pi desktop
+        #resize the window
         MainWindow.setFixedSize(935, 666)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -81,9 +81,7 @@ class Ui_MainWindow(object):
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
         
-        #widgets for estimated power meter
-        #label says Power (mW), lcd shows power, line edit allows for manual power meter cal
-        #alibration, and pushbutton calibrates it
+        #labels for image power and exposure
         self.label_P = QtWidgets.QLabel(self.tab_2)
         self.label_P.setGeometry(QtCore.QRect(20,160,101,41))
         self.lcdNumber_P = QtWidgets.QLCDNumber(self.tab_2)
@@ -100,6 +98,15 @@ class Ui_MainWindow(object):
         self.label_sat.setText("# Saturated Pixels: 0")
         self.label_sat.setGeometry(QtCore.QRect(210,540,250,30))
         
+        #labels for fps
+        self.label_fps = QtWidgets.QLabel(MainWindow)
+        self.label_fps.setGeometry(QtCore.QRect(800,600,101,41))
+        self.label_fps.setFont(QtGui.QFont('Any',12))
+        self.label_fps.setText("fps: ")
+        self.label_fps.setHidden(True)
+        #self.lcdNumber_fps = QtWidgets.QLCDNumber(self.tab_2)
+        #self.lcdNumber_fps.setGeometry(QtCore.QRect(20, 190, 81, 41))
+        #self.lcdNumber_fps.display("0")
         
         #widgets for displaying centroid and estimated beam width
         #labels say d4 sigma. lcd's show computed widths
@@ -217,6 +224,7 @@ class Ui_MainWindow(object):
                 self.threadA.start()
                 if self.threadA.camera != None:
                     self.RUNNING = True
+                self.label_fps.setHidden(False)
             else:
                 self.lineEdit.setText("System already running")
         except:
@@ -243,6 +251,7 @@ class Ui_MainWindow(object):
                 self.threadA.LOGGING = False
                 self.pushButton_L.setText("Log")
                 self.lineEdit.setText("Data logging stopped")
+                self.autoExp.setChecked(False)
         else:
             self.lineEdit.setText("Run the system before logging data")
             
@@ -277,22 +286,21 @@ class Ui_MainWindow(object):
 class captureThread(QThread):
     #variables which can be accessed across functions and threads
     image_live = np.empty(1) #live camera image
-    camera = None #camera variable for PiCamera
+    camera = None #camera variable for Camera
     MainWindow = None #MainWindow passed to thread so thread can modify UI elements
     SAVE_NOW = False #flag to save all data once
     LOGGING = False #flag to continuously log data
     FRAMES_INIT = False #used to set camera and beam frame sizes and locations to draw images on
-    pix_sum, factor_P, pix_max, sat_num = 0,0,0,0 #used for power meter calibration, estimation and detecting saturation
-    sat_num_allowed = 20 #number of allowed saturated pixels before considering the beam profile 'saturated'
+    pix_sum, pix_max, sat_num = 0,0,0 #used for power and signal level
     count_x,count_y,count_r = 0,0,0 #used to reset aperture values if input is left blank
     mask_x, mask_y, mask_r = 1296,972,880 #mask values for digital aperture. Changes based on text input
     W = 1280 #camera/image width to be set
     H = 960 #camera/image height to be set
-    pixel_um = 5.6 #multiply a pixel width by 1.55 micron to get physical width #SENSOR DEPENDENT
+    pixel_um = 5.6 #multiply a pixel width by 5.6 micron to get physical width #SENSOR DEPENDENT
     exposure_dict = {-1:640, -2:320, -3:160, -4:80, -5:40, -6:20, -7:10, -8:5, -9:2.5, -10:1.25,\
-        -11:.65, -12:.312, -13:.150}
-    centroid_x_save = int(1280/2)
-    centroid_y_save = int(960/2)
+        -11:.65, -12:.312, -13:.150} #exposure dict, values are related to exposure time in ms
+    centroid_x_save = int(1280/2) #centroid tracking X
+    centroid_y_save = int(960/2) #centroid tracking Y
     d4s_major_save = int(380)
     centroid_x_save_init, centroid_y_save_init, d4s_major_save_init = centroid_x_save, centroid_y_save, d4s_major_save# fix to allow autoROI to reset between different cameras
     count = 1
@@ -301,6 +309,10 @@ class captureThread(QThread):
     path = ''
     camera_designator = ''
     LOGGING_CNT_THRESHOLD = 10000
+    fps_time1 = 0
+    fps_time2 = 0
+    fps_counter = 0
+    fps_averaging = 15
     
     #initialize camera and set main window for interaction between thread and MainWindow
     def __init__(self, MainWindow, W, H):
@@ -312,7 +324,21 @@ class captureThread(QThread):
         self.init_camera(index=index,firstInit=True)
 
         self.autoExpCounter = 0
-
+    
+    #fps tracking function
+    def fps(self):
+        if self.fps_counter == 0:
+            self.fps_time1 = datetime.datetime.now()
+            self.fps_counter += 1
+        elif self.fps_counter == self.fps_averaging:
+            self.fps_time2 = datetime.datetime.now()
+            time_diff = self.fps_time2 - self.fps_time1
+            average_fps = self.fps_averaging/time_diff.total_seconds()
+            self.MainWindow.label_fps.setText('fps: {:.1f}'.format(average_fps))
+            self.fps_counter = 0
+        else:
+            self.fps_counter += 1
+            
     #capture live images and convert to beam profile
     def run(self):
         while(1):
@@ -321,7 +347,7 @@ class captureThread(QThread):
                 self.autoExpCounter = 0
                 if self.LOGGING:
                     for index in range(len(enumerate_cameras(cv2.CAP_MSMF))):
-                        print(index)
+                        #print(index)
                         self.centroid_x_save, self.centroid_y_save, self.d4s_major_save = self.centroid_x_save_init, self.centroid_y_save_init, self.d4s_major_save_init
                         self.MainWindow.currentIndex = index
                         self.MainWindow.autoExp.setChecked(True)
@@ -329,10 +355,12 @@ class captureThread(QThread):
                         self.autoExpCounter = 0
                         time.sleep(0.5)
                         while self.MainWindow.AUTO_EXP:
+                            self.fps()
                             self.live_image()
                             self.beam()
                         time.sleep(0.5)
                 else:
+                    self.fps()
                     self.live_image()
                     self.beam()
                 #except:
@@ -363,8 +391,9 @@ class captureThread(QThread):
         if not firstInit:
             cap.set_exposure(self.camera.exposure)
             #self.MainWindow.lineEdit_P.setText("-7")
-            
+
         self.camera = cap
+        self.MainWindow.lineEdit_P.setText(str(self.camera.exposure))
         self.currentCamera = index
         for camera_info in enumerate_cameras(cv2.CAP_MSMF):
             if index==camera_info.index:
@@ -436,6 +465,7 @@ class captureThread(QThread):
         
     
     #convert camera image to beam profile (rainbow map) and display on GUI
+    #centroid and ROI
     #compute metrics of beam (centroid, D4σ)
     def beam(self):
         #time printouts can be used for runtime optimization which directly translates to framerate of images
@@ -448,7 +478,8 @@ class captureThread(QThread):
             if self.count == 1:
                 self.autoExpCounter += 1
                 if self.autoExpCounter >= 15:
-                    self.MainWindow.autoExp.setChecked(False)
+                    if self.LOGGING:
+                        self.MainWindow.autoExp.setChecked(False)
                     self.MainWindow.lineEdit.setText("Max autoexposure tries reached")
                 elif np.max(image) < 0.7*255:
                     exposure_val = int(self.camera.exposure+1)
@@ -457,7 +488,8 @@ class captureThread(QThread):
                         self.MainWindow.lineEdit_P.setText(str(exposure_val))
                     else:
                         self.MainWindow.lineEdit.setText("Already at max exposure")
-                        self.MainWindow.autoExp.setChecked(False)
+                        if self.LOGGING:
+                            self.MainWindow.autoExp.setChecked(False)
                 elif np.max(image) > 0.9*255:
                     exposure_val = int(self.camera.exposure-1)
                     if not (self.camera.exposure==-13):
@@ -465,10 +497,12 @@ class captureThread(QThread):
                         self.MainWindow.lineEdit_P.setText(str(exposure_val))
                     else:
                         self.MainWindow.lineEdit.setText("Already at min exposure")
-                        self.MainWindow.autoExp.setChecked(False)
+                        if self.LOGGING:
+                            self.MainWindow.autoExp.setChecked(False)
                 else:
                     self.MainWindow.lineEdit.setText("Auto exposure complete")
-                    self.MainWindow.autoExp.setChecked(False)
+                    if self.LOGGING:
+                        self.MainWindow.autoExp.setChecked(False)
                 self.count += 1
             else:
                 if self.count == 10:
@@ -547,10 +581,9 @@ class captureThread(QThread):
         image_m = np.copy(image)
         image_m[mask==0] = 0
         
-        #approximate the power based on the total bit count and calibration factors
+        #get the sum and peak values of the image
         self.pix_sum = np.sum(image_m)
         self.pix_max = np.max(image_m)
-        #P_estimated = self.pix_sum * self.factor_P
         self.MainWindow.lcdNumber_P.display(round(self.pix_sum/1E4))
         
         #count the number of saturated pixels
