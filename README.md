@@ -53,6 +53,7 @@ Beam profiling software features:
 - Auto ROI tracking
 - Centroid tracking
 - Centroid and beam width (d4sigma) readout
+- Reference crosshair placement
 - Power (integrated counts) readout
 - Exposure setting
 - Auto exposure
