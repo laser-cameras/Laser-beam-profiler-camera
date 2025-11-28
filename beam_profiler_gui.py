@@ -3,7 +3,7 @@
 #Custom laser beam image acquisition and beam profiling GUI
 #The code has been tested on Windows11
 
-#Version: v1.1
+#Version: v1.2
 #This software is made available via GNU
 
 #required imports
@@ -19,6 +19,7 @@ from camera import Camera
 import time
 import math
 from cv2_enumerate_cameras import enumerate_cameras
+import traceback
 
 if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
     PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
@@ -37,6 +38,7 @@ class Ui_MainWindow(object):
     pixel_um = 5.6
     ROI_Tracking = False
     AUTO_EXP = False
+    REFERENCE_CROSSHAIR = False
     currentIndex = 0
     
     #setup UI elements
@@ -100,12 +102,12 @@ class Ui_MainWindow(object):
         
         #labels for fps and exposure value
         self.label_fps = QtWidgets.QLabel(MainWindow)
-        self.label_fps.setGeometry(QtCore.QRect(800,600,71,41))
+        self.label_fps.setGeometry(QtCore.QRect(800,608,71,41))
         self.label_fps.setFont(QtGui.QFont('Any',12))
         self.label_fps.setText("fps: ")
         self.label_fps.setHidden(True)
         self.label_exp_ms = QtWidgets.QLabel(MainWindow)
-        self.label_exp_ms.setGeometry(QtCore.QRect(630,600,175,41))
+        self.label_exp_ms.setGeometry(QtCore.QRect(630,608,175,41))
         self.label_exp_ms.setFont(QtGui.QFont('Any',12))
         self.label_exp_ms.setText("Exposure (ms): ")
         self.label_exp_ms.setHidden(True)
@@ -173,6 +175,15 @@ class Ui_MainWindow(object):
         self.autoExp = QtWidgets.QCheckBox(self.tab_2)
         self.autoExp.setGeometry(QtCore.QRect(120,590,100,20))
         
+        #manual reference crosshair
+        self.reference = QtWidgets.QCheckBox(self.tab_2)
+        self.reference.setGeometry(QtCore.QRect(230,590,190,20))
+        self.lineEdit_refX = QtWidgets.QLineEdit(self.tab_2)
+        self.lineEdit_refX.setGeometry(QtCore.QRect(410, 590, 45, 20))
+        self.lineEdit_refX.setText(str(self.pixel_um*(self.W / 2)))
+        self.lineEdit_refY = QtWidgets.QLineEdit(self.tab_2)
+        self.lineEdit_refY.setGeometry(QtCore.QRect(465, 590, 45, 20))
+        self.lineEdit_refY.setText(str(self.pixel_um*(self.H / 2)))
         #camera select list
         self.cameraSelect = QtWidgets.QComboBox(self.tab)
         self.cameraSelect.setGeometry(QtCore.QRect(120,55,100,20))
@@ -191,12 +202,9 @@ class Ui_MainWindow(object):
         self.pushButton_L.clicked.connect(self.log)
         self.tracking.stateChanged.connect(self.checkedTracking)
         self.autoExp.stateChanged.connect(self.checkedAutoExp)
+        self.reference.stateChanged.connect(self.checkedReference)
         
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-        if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
-            QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-        if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
-            QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
     #set text for GUI elements
     def retranslateUi(self, MainWindow):
@@ -217,6 +225,7 @@ class Ui_MainWindow(object):
         self.pushButton_L.setText(_translate("MainWindow", "Log"))
         self.tracking.setText(_translate("MainWindow", "ROI tracking"))
         self.autoExp.setText(_translate("MainWindow", "Auto Exposure"))
+        self.reference.setText(_translate("MainWindow", "Reference Crosshair (x,y) (μm)"))
         #self.cameraSelect.setText("MainWindow", "Camera #")
         
     #run image acquisition and processing thread
@@ -232,7 +241,8 @@ class Ui_MainWindow(object):
                 self.label_fps.setHidden(False)
             else:
                 self.lineEdit.setText("System already running")
-        except:
+        except Exception:
+            traceback.print_exc()
             return
 
     #set camera exposure
@@ -282,6 +292,12 @@ class Ui_MainWindow(object):
         else:
             self.AUTO_EXP = False
             
+    def checkedReference(self, checked):
+        if checked:
+            self.REFERENCE_CROSSHAIR = True
+        else:
+            self.REFERENCE_CROSSHAIR = False
+            
     #drop down for camera selection
     def dropDownCamera(self, index):
         self.currentIndex = index
@@ -317,7 +333,7 @@ class captureThread(QThread):
     fps_time1 = 0
     fps_time2 = 0
     fps_counter = 0
-    fps_averaging = 15
+    fps_averaging = 10 #number of frames to average the fps calculation over
     
     #initialize camera and set main window for interaction between thread and MainWindow
     def __init__(self, MainWindow, W, H):
@@ -348,35 +364,36 @@ class captureThread(QThread):
     def run(self):
         while(1):
             if self.camera != None:
-                #try:
-                self.autoExpCounter = 0
-                if self.LOGGING:
-                    for index in range(len(enumerate_cameras(cv2.CAP_MSMF))):
-                        #print(index)
-                        self.centroid_x_save, self.centroid_y_save, self.d4s_major_save = self.centroid_x_save_init, self.centroid_y_save_init, self.d4s_major_save_init
-                        self.MainWindow.currentIndex = index
-                        self.MainWindow.autoExp.setChecked(True)
-                        self.MainWindow.tracking.setChecked(True)
-                        self.autoExpCounter = 0
-                        time.sleep(0.5)
-                        while self.MainWindow.AUTO_EXP:
-                            self.fps()
-                            self.live_image()
-                            self.beam()
-                        time.sleep(0.5)
-                else:
-                    self.fps()
-                    self.live_image()
-                    self.beam()
-                    self.MainWindow.label_exp_ms.setText("Exposure (ms): {}".format(self.exposure_dict[self.camera.exposure]))
-                #except:
-                #    self.MainWindow.RUNNING = False
-                #    still = np.zeros([int(self.H/self.scale),int(self.W/self.scale),3])
-                #    imGUI = QtGui.QImage(still.data, still.shape[1], still.shape[0], \
-                #    still.shape[1]*3, QtGui.QImage.Format_RGB888)
-                #    self.MainWindow.beam_frame.setPixmap(QtGui.QPixmap.fromImage(imGUI))
-                #    self.MainWindow.image_frame.setPixmap(QtGui.QPixmap.fromImage(imGUI))
-                #    return
+                try:
+                    self.autoExpCounter = 0
+                    if self.LOGGING:
+                        for index in range(len(enumerate_cameras(cv2.CAP_MSMF))):
+                            #print(index)
+                            self.centroid_x_save, self.centroid_y_save, self.d4s_major_save = self.centroid_x_save_init, self.centroid_y_save_init, self.d4s_major_save_init
+                            self.MainWindow.currentIndex = index
+                            self.MainWindow.autoExp.setChecked(True)
+                            self.MainWindow.tracking.setChecked(True)
+                            self.autoExpCounter = 0
+                            time.sleep(0.5)
+                            while self.MainWindow.AUTO_EXP:
+                                self.fps()
+                                self.live_image()
+                                self.beam()
+                            time.sleep(0.5)
+                    else:
+                        self.fps()
+                        self.live_image()
+                        self.beam()
+                        self.MainWindow.label_exp_ms.setText("Exposure (ms): {}".format(self.exposure_dict[self.camera.exposure]))
+                except Exception:
+                    #self.MainWindow.RUNNING = False
+                    #still = np.zeros([int(self.H/self.scale),int(self.W/self.scale),3])
+                    #imGUI = QtGui.QImage(still.data, still.shape[1], still.shape[0], \
+                    #still.shape[1]*3, QtGui.QImage.Format_RGB888)
+                    #self.MainWindow.beam_frame.setPixmap(QtGui.QPixmap.fromImage(imGUI))
+                    #self.MainWindow.image_frame.setPixmap(QtGui.QPixmap.fromImage(imGUI))
+                    traceback.print_exc()
+                    #return
             else:
                 self.MainWindow.RUNNING = False
                 return
@@ -620,7 +637,7 @@ class captureThread(QThread):
             centroid_y = self.mask_y
             self.d4s_major_save = self.mask_r
             d4x_px, d4y_px, d4x, d4y = 0,0,0,0
-        self.MainWindow.label_centroid.setText("Centroid x,y (um): "+'{0:.1f}'.format(self.pixel_um*centroid_x)+", "+'{0:.1f}'.format(self.pixel_um*centroid_y))
+        self.MainWindow.label_centroid.setText("Centroid x,y (μm): "+'{0:.1f}'.format(self.pixel_um*centroid_x)+", "+'{0:.1f}'.format(self.pixel_um*centroid_y))
         self.MainWindow.lcdNumber_dx.display(round(d4x))
         self.MainWindow.lcdNumber_dy.display(round(d4y))
         
@@ -716,6 +733,25 @@ class captureThread(QThread):
         #convert to int by rounding
         d4x, d4y, centroid_x, centroid_y = round(d4x), round(d4y), round(centroid_x), round(centroid_y)
         
+        #add dashed lines for reference crosshair if enabled
+        if self.MainWindow.REFERENCE_CROSSHAIR:
+            refX = float(self.MainWindow.lineEdit_refX.text())/self.pixel_um
+            refY = float(self.MainWindow.lineEdit_refY.text())/self.pixel_um
+            refXpix = int(refX)
+            refYpix = int(refY)
+            deltaX = refX - self.W/2
+            deltaY = refY - self.H/2
+            numdashesV = 24#12
+            addDashesV = self.addDashes(deltaY,numdashesV,direction='V')
+            for i in range(0-addDashesV-1,numdashesV-addDashesV+1):
+                cv2.line(beam, (refXpix,i*int(self.H/numdashesV)+int(self.H/(4*numdashesV))+int(deltaY)), \
+                    (refXpix,(2*i+1)*int(self.H/(2*numdashesV))+int(self.H/(4*numdashesV))+int(deltaY)), (0,0,0), thickness=2)
+            numdashesH = 32#16
+            addDashesH = self.addDashes(deltaX,numdashesH,direction='H')
+            for i in range(0-addDashesH-1,numdashesH-addDashesH+1):
+                cv2.line(beam, (i*int(self.W/numdashesH)+int(self.W/(4*numdashesH))+int(deltaX),refYpix), \
+                    ((2*i+1)*int(self.W/(2*numdashesH))+int(self.W/(4*numdashesH))+int(deltaX),refYpix), (0,0,0), thickness=2)
+            cv2.circle(beam, (refXpix,refYpix), radius=3, color=(0, 0, 0), thickness=-1)
         #apply centroid line tracking
         cv2.line(beam, (centroid_x,0), (centroid_x,self.H), (0,0,0), thickness=3)
         cv2.line(beam, (0,centroid_y), (self.W,centroid_y), (0,0,0), thickness=3)
@@ -738,7 +774,20 @@ class captureThread(QThread):
         #B = datetime.datetime.now()
         #print("Beam runtime: "+str(B-A))
         
-        
+    #helper function to add dashes for drawing reference crosshair
+    def addDashes(self,delta,numdashes,direction):
+        if direction=='V':
+            addDashes = delta/(self.H/numdashes)
+        elif direction=='H':
+            addDashes = delta/(self.W/numdashes)
+        if addDashes > 0:
+            addDashes = int(np.ceil(addDashes))
+        elif addDashes < 0:
+            addDashes = int(np.floor(addDashes))
+        else:
+            addDashes = int(0)
+        return addDashes
+                
 #run the GUI      
 if __name__ == "__main__":
     import sys
