@@ -25,6 +25,8 @@ class Camera:
 
         if self.fps:
             self.cap.set(cv2.CAP_PROP_FPS, self.fps)
+            
+        self.set_exposure(self.exposure)
     
     def set_width(self, width):
         self.width = width

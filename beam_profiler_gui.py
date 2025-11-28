@@ -81,32 +81,34 @@ class Ui_MainWindow(object):
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
         
-        #labels for image power and exposure
+        #labels for image power and exposure setting
         self.label_P = QtWidgets.QLabel(self.tab_2)
         self.label_P.setGeometry(QtCore.QRect(20,160,101,41))
         self.lcdNumber_P = QtWidgets.QLCDNumber(self.tab_2)
         self.lcdNumber_P.setGeometry(QtCore.QRect(20, 190, 81, 41))
         self.lcdNumber_P.display("0")
-        self.lineEdit_P = QtWidgets.QLineEdit(self.tab_2)
-        self.lineEdit_P.setGeometry(QtCore.QRect(20, 110, 80, 40))
-        self.lineEdit_P.setText("-11")
-        self.pushButton_P = QtWidgets.QPushButton(self.tab_2)
-        self.pushButton_P.setGeometry(QtCore.QRect(20, 50, 80, 40))
+        self.lineEdit_setExp = QtWidgets.QLineEdit(self.tab_2)
+        self.lineEdit_setExp.setGeometry(QtCore.QRect(20, 110, 80, 40))
+        self.lineEdit_setExp.setText("-7")
+        self.pushbutton_setExp = QtWidgets.QPushButton(self.tab_2)
+        self.pushbutton_setExp.setGeometry(QtCore.QRect(20, 70, 80, 40))
         #label for showing number of saturated pixels
         self.label_sat = QtWidgets.QLabel(self.tab_2)
         self.label_sat.setFont(QtGui.QFont('Any',12))
         self.label_sat.setText("# Saturated Pixels: 0")
         self.label_sat.setGeometry(QtCore.QRect(210,540,250,30))
         
-        #labels for fps
+        #labels for fps and exposure value
         self.label_fps = QtWidgets.QLabel(MainWindow)
-        self.label_fps.setGeometry(QtCore.QRect(800,600,101,41))
+        self.label_fps.setGeometry(QtCore.QRect(800,600,71,41))
         self.label_fps.setFont(QtGui.QFont('Any',12))
         self.label_fps.setText("fps: ")
         self.label_fps.setHidden(True)
-        #self.lcdNumber_fps = QtWidgets.QLCDNumber(self.tab_2)
-        #self.lcdNumber_fps.setGeometry(QtCore.QRect(20, 190, 81, 41))
-        #self.lcdNumber_fps.display("0")
+        self.label_exp_ms = QtWidgets.QLabel(MainWindow)
+        self.label_exp_ms.setGeometry(QtCore.QRect(630,600,175,41))
+        self.label_exp_ms.setFont(QtGui.QFont('Any',12))
+        self.label_exp_ms.setText("Exposure (ms): ")
+        self.label_exp_ms.setHidden(True)
         
         #widgets for displaying centroid and estimated beam width
         #labels say d4 sigma. lcd's show computed widths
@@ -174,15 +176,17 @@ class Ui_MainWindow(object):
         #camera select list
         self.cameraSelect = QtWidgets.QComboBox(self.tab)
         self.cameraSelect.setGeometry(QtCore.QRect(120,55,100,20))
-        self.cameraSelect.addItems(['Camera 0','Camera 1','Camera 2','Camera 3','Camera 4','Camera 5' \
-                                        ,'Camera 6','Camera 7'])
+        for camera_num in range(len(enumerate_cameras(cv2.CAP_MSMF))):
+        #self.cameraSelect.addItems(['Camera 0','Camera 1','Camera 2','Camera 3','Camera 4','Camera 5' \
+                                    #    ,'Camera 6','Camera 7'])
+            self.cameraSelect.addItems(['Camera {}'.format(camera_num)])
         self.cameraSelect.currentIndexChanged.connect(self.dropDownCamera)
         
         self.retranslateUi(MainWindow)
         self.tabWidget.setCurrentIndex(0)
         #connect the pushbuttons to start image capture, calibrate power meter, save data
         self.pushButton.clicked.connect(self.run)
-        self.pushButton_P.clicked.connect(self.exp)
+        self.pushbutton_setExp.clicked.connect(self.exp)
         self.pushButton_S.clicked.connect(self.save)
         self.pushButton_L.clicked.connect(self.log)
         self.tracking.stateChanged.connect(self.checkedTracking)
@@ -203,12 +207,12 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Camera"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Beam"))
         self.label_P.setText(_translate("MainWindow", "Power (ct*1E4)"))
-        self.pushButton_P.setText(_translate("MainWindow", "Set Exp"))
+        self.pushbutton_setExp.setText(_translate("MainWindow", "Set Exp\n[-13,-1]"))
         self.label_dx.setText(_translate("MainWindow", "D4σx (μm)"))
         self.label_dy.setText(_translate("MainWindow", "D4σy (μm)"))
-        self.label_apx.setText(_translate("MainWindow", "ROI x"))
-        self.label_apy.setText(_translate("MainWindow", "ROI y"))
-        self.label_apr.setText(_translate("MainWindow", "ROI Radius"))
+        self.label_apx.setText(_translate("MainWindow", "ROI x (μm)"))
+        self.label_apy.setText(_translate("MainWindow", "ROI y (μm)"))
+        self.label_apr.setText(_translate("MainWindow", "ROI Radius (μm)"))
         self.pushButton_S.setText(_translate("MainWindow", "Save"))
         self.pushButton_L.setText(_translate("MainWindow", "Log"))
         self.tracking.setText(_translate("MainWindow", "ROI tracking"))
@@ -224,6 +228,7 @@ class Ui_MainWindow(object):
                 self.threadA.start()
                 if self.threadA.camera != None:
                     self.RUNNING = True
+                self.label_exp_ms.setHidden(False)
                 self.label_fps.setHidden(False)
             else:
                 self.lineEdit.setText("System already running")
@@ -235,7 +240,7 @@ class Ui_MainWindow(object):
         if not self.RUNNING:
             self.lineEdit.setText("Run the system before setting exposure")
         else:
-            if -13 <= int(self.lineEdit_P.text()) <= -1:
+            if -13 <= int(self.lineEdit_setExp.text()) <= -1:
                 self.threadA.exp()
             else:
                 self.lineEdit.setText("Enter valid exposure in range [-13,-1]")
@@ -363,6 +368,7 @@ class captureThread(QThread):
                     self.fps()
                     self.live_image()
                     self.beam()
+                    self.MainWindow.label_exp_ms.setText("Exposure (ms): {}".format(self.exposure_dict[self.camera.exposure]))
                 #except:
                 #    self.MainWindow.RUNNING = False
                 #    still = np.zeros([int(self.H/self.scale),int(self.W/self.scale),3])
@@ -381,19 +387,20 @@ class captureThread(QThread):
         if not firstInit:
             self.camera.release()
             
-        cap = Camera(int(self.MainWindow.lineEdit_P.text()),index)
+        cap = Camera(int(self.MainWindow.lineEdit_setExp.text()),index)
         cap.open()
-
+        #cap.set_exposure(int(self.MainWindow.lineEdit_setExp.text()))
+        
         if not cap.isOpened():
             self.MainWindow.lineEdit.setText('Camera #{} failed to open'.format(index))
             return
         
         if not firstInit:
             cap.set_exposure(self.camera.exposure)
-            #self.MainWindow.lineEdit_P.setText("-7")
-
+            #self.MainWindow.lineEdit_setExp.setText("-7")
+            
         self.camera = cap
-        self.MainWindow.lineEdit_P.setText(str(self.camera.exposure))
+        self.MainWindow.lineEdit_setExp.setText(str(self.camera.exposure))
         self.currentCamera = index
         for camera_info in enumerate_cameras(cv2.CAP_MSMF):
             if index==camera_info.index:
@@ -401,6 +408,10 @@ class captureThread(QThread):
                 #uncomment the following print line and run the program
                 ##Choose cameras from the drop down to print out and read the path
                 #print(path)
+                
+        if firstInit:
+            self.MainWindow.lineEdit_setExp.setText(str(self.camera.exposure))
+            
         #insert corresponding path identifier below that is printed e.g. 8&150091a5 for your camera and PC
         ##this corresponds to a physical camera which can be used as the designator, e.g. 'Near Field 1064 nm camera 1'
         if '8&150091a5' in path:
@@ -444,7 +455,7 @@ class captureThread(QThread):
                 
         #take a raw capture
         self.img_capture()
-        #downsample the image by scale factor 4 to fit on the GUI screen
+        #downsample the image by scale factor to fit on the GUI screen
         scale = 2
         imR = cv2.resize(self.image_live, (int(self.W/scale),int(self.H/scale)))
         #imR = self.image_live
@@ -459,7 +470,7 @@ class captureThread(QThread):
 
     #set the camera exposure
     def exp(self):
-        exposure = int(self.MainWindow.lineEdit_P.text())
+        exposure = int(self.MainWindow.lineEdit_setExp.text())
         self.camera.set_exposure(exposure)
         self.MainWindow.lineEdit.setText("Exposure Set!")
         
@@ -485,7 +496,7 @@ class captureThread(QThread):
                     exposure_val = int(self.camera.exposure+1)
                     if not (self.camera.exposure==-1):
                         self.camera.set_exposure(exposure_val)
-                        self.MainWindow.lineEdit_P.setText(str(exposure_val))
+                        self.MainWindow.lineEdit_setExp.setText(str(exposure_val))
                     else:
                         self.MainWindow.lineEdit.setText("Already at max exposure")
                         if self.LOGGING:
@@ -494,7 +505,7 @@ class captureThread(QThread):
                     exposure_val = int(self.camera.exposure-1)
                     if not (self.camera.exposure==-13):
                         self.camera.set_exposure(exposure_val)
-                        self.MainWindow.lineEdit_P.setText(str(exposure_val))
+                        self.MainWindow.lineEdit_setExp.setText(str(exposure_val))
                     else:
                         self.MainWindow.lineEdit.setText("Already at min exposure")
                         if self.LOGGING:
