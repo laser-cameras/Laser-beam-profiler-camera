@@ -43,8 +43,7 @@ Hardware installation instructions:
 <br>
 
 <img width="470" height="692" alt="1_1" src="https://github.com/user-attachments/assets/7ae555cf-f386-4c32-ac8d-9e73b40c56af" />
-<img width="470" height="692" alt="2" src="https://github.com/user-attachments/assets/71d6e12a-6ccb-4562-84d2-50419f3b13ed" />
-
+<img width="470" height="692" alt="2_1" src="https://github.com/user-attachments/assets/d325e050-4aee-4da2-9630-75cda3c2fdb6" />
 
 Beam profiling software features:
 - Camera raw image feed
