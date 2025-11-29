@@ -1,4 +1,4 @@
-Open-source laser beam profiling application using Python.
+Open-source laser beam profiling application using Python on Windows.
 
 Required packages:  
 - PyQt5
